@@ -1,0 +1,132 @@
+					ANALYSIS
+				Author: Rustam Mansyrov
+
+1) Pre-processing part
+
+- Downloading the data from the link provided below:
+
+	fileUrl<-"https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
+
+	temp<-tempfile()
+
+	download.file(fileUrl,temp)
+
+	list_files<-unzip(temp)
+
+	list_files
+
+	unlink(temp)
+
+- Uploading the datasets into R using "read.table" function without header. The names assigned to datasets 
+  are considered to be descriptive, i.e. informing about the content of the dataset.
+
+	X_train <- read.table("train/X_train.txt", header = F)
+
+	X_train_labels <- read.table("train/y_train.txt",header = F, colClasses = "character")
+
+	X_test <- read.table("test/X_test.txt", header = F)
+
+	X_test_labels <- read.table("test/y_test.txt",header = F, colClasses = "character")
+
+	features <- read.table("features.txt", header = F)
+
+	activity_labels <- read.table("activity_labels.txt", header = F, colClasses = "character")
+
+	subjects_train <- read.table("train/subject_train.txt", header = F, colClasses = "numeric")
+
+	subjects_test <- read.table("test/subject_test.txt", header = F, colClasses = "numeric")
+
+2) Step 1: Merging train and test sets to create a single dataset having total of 10299 observations
+	   of 561 features.
+
+	X_merged <- merge(X_train, X_test, all = TRUE)
+
+3) Step 2: Extracting only variables showing the means and standard deviations of the subjects and their
+           respective activities. The subsetting is made using"grep" function to take out the features
+	   having "Mean(mean)" and "Std(std)" character strings inside. Then, using relevant 
+	   indeces, new dataset having 10299 observations of 86 features.
+
+
+	index_mean <- grep("[Mm]ean", features[,2])
+
+	index_std <- grep("[Ss]td", features[,2])
+
+	required_colomns <- c(index_mean, index_std)
+
+	required_colomns <- sort(required_colomns)
+
+	X_merged <- X_merged[,required_colomns]
+
+
+4) Step 3: Creating function called "label_f" that assigns the activity names to indeces. For instance, "1" 
+	   is assigned to "WALKING
+" activity and et cetera. So, there are assingment for both cases with 
+	   training and testing label sets. Then, they are merged together new data frame created comprising 
+	   of already merged dataset and new labelling vectors containing subject id and activities names.
+
+	label_f <- function(x){
+        	x <- activity_labels[x,2]
+        	x       
+	}
+
+	for(i in 1:length(X_train_labels[,1])){
+        	X_train_labels[i,1] <- label_f(X_train_labels[i,1])
+	}
+
+	for(i in 1:length(X_test_labels[,1])){
+        	X_test_labels[i,1] <- label_f(X_test_labels[i,1])
+	}
+
+	activities_merged <- rbind(X_train_labels, X_test_labels)
+
+	subjects <- rbind(subjects_train, subjects_test)
+
+	X_merged <- data.frame(subjects, activities_merged, X_merged)
+
+
+5) Step 4: Labelling the dataset with descriptive variable names. The vector features contained all the 
+	   feature names of the 561 variables. Firstly, the vector is converted into character. Then, 
+	   using additional names to add, there is created "required_names" vector. This vector further
+	   is used to name the variables of the dataset. Finally, after arrranging the order of the 
+	   subjects in the dataset, the final dataset is prepared and named as a "first_data_set". 
+	
+	required_names <- as.character(features[required_colomns,2])
+
+	additional <- c("Subjects", "Activity")
+
+	required_names <- c(additional, required_names)
+
+	names(X_merged) <- required_names
+
+	library(dplyr); X_merged <- arrange(X_merged, Subjects)
+
+	first_data_set <- X_merged
+
+
+
+6) Step 5: Creating independent dataset with average for each activity and each subject. Firstly, the feature 
+	   names are cleaned such that no hypens or any other symbols are involved. Then, "melted_data_set" 	
+           is created with melting "Subjects" and "Activity" features, so that, using "dcast" function it      
+           helps to create new dataset with each different subject corresponding to different activities         
+           having their own averages for each feature. After again arranging the order of subjects, the tidy     
+           data set is written as a text file.
+	
+	second_data_set <- X_merged
+
+	names(second_data_set) <- gsub(x = names(second_data_set), "\\(|\\)|-|,", "")
+
+	second_data_set <- mutate(second_data_set, Activity = factor(Activity))
+
+	library(reshape2)
+
+	melted_data_set <- melt(second_data_set, id = c("Subjects", "Activity"))
+	
+	casted_data_set <- dcast(melted_data_set, Subjects + Activity ~ variable, mean)
+
+	second_data_set <- casted_data_set
+
+	second_data_set$Subjects <- as.numeric(as.character(second_data_set$Subjects))
+
+	second_data_set <- arrange(second_data_set, Subjects)
+
+	write.table(second_data_set, "tidy_data_set.txt", row.names = FALSE)
