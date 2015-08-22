@@ -1,6 +1,6 @@
-					Code Book
-				Author: Rustam Mansyrov
-================================================================================================================
+Code Book
+Author: Rustam Mansyrov
+========================
 1) Description of Data
 
 - Data
